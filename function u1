@@ -1,0 +1,77 @@
+#include "functionality.h"
+
+bool functionality(){
+	c = numberpressed();
+	if(c == '1'){
+		
+		while(1){
+			
+			
+			PORTD |= 1<<PIND0;
+			_delay_us(15);
+
+			PORTD &= ~(1<<PIND0);
+			count_a = pulse/58;
+			
+			itoa(count_a,show_a,10);
+			
+			if((count_a >= 5) && (count_a <= 10)){
+				PORTA = 0x01;
+				PORTD &= ~(1<<PD1);
+				PORTD &= ~(1<<PD3);
+			}
+			else if((count_a >= 11) && (count_a <= 20)){
+				PORTA = 0x03;
+				PORTD &= ~(1<<PD1);
+				PORTD &= ~(1<<PD3);
+			}
+			else if((count_a >= 21) && (count_a <= 30)){
+				PORTA = 0x03;
+				PORTD |= (1<<PD1);
+				PORTD &= ~(1<<PD3);
+			}
+			else if((count_a >= 31) && (count_a <= 50)){
+				PORTA = 0x03;
+				PORTD |= (1<<PD1);
+				PORTD |= (1<<PD3);
+				}else{
+				PORTA = 0x00;
+				PORTD &= ~(1<<PD1);
+				PORTD &= ~(1<<PD3);
+			}
+			
+			
+			Lcd4_Clear();
+			Lcd4_Set_Cursor(1,0);
+			Lcd4_Write_String(show_a);
+			_delay_ms(1000);
+			
+			c = numberpressed();
+			if(c == '3'){
+				break;
+			}
+		}
+		
+		}else if(c == '2'){
+		Lcd4_Clear();
+		Lcd4_Set_Cursor(1,0);
+		Lcd4_Write_String("Temp: ");
+		while(1){
+			d = ds18b20_gettemp();
+			
+			dtostrf(d, 10, 3, printbuff);
+			l = strlen(printbuff);
+			
+			for(k=0;k<l;k++){
+				Lcd4_Set_Cursor(1,(7+k));
+				Lcd4_Write_Char(printbuff[k]);
+			}
+			_delay_ms(1000);
+			
+			c = numberpressed();
+			if(c == '3'){
+				break;
+			}
+		}
+	}
+}
