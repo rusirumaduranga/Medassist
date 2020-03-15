@@ -1,0 +1,237 @@
+
+#define F_CPU 8000000UL
+
+
+
+
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <util/delay.h>
+#include <string.h>
+#include <stdlib.h>
+#include <math.h>
+#include "ds18b20.h"
+#include "pulserate.h"
+
+#include "numberpad.h"
+#define UART_BAUD_RATE 2400
+#include "uart.h"
+#include "lcd.h"
+
+
+#include "waterlevel.h"
+
+
+static volatile int pulse = 0;
+static volatile int i = 0;
+ 
+
+int main(void)
+{
+	 DDRB = 0xF0; //1,2,3 - Keypad
+	 DDRC = 0xFE; //6,7 - lcd		1 - temp
+	 DDRA = 0xFF; //water level
+	 DDRD = 0b11111011; //4,5,6,7 - lcd       0,1 - ultra sonic        0,5 - Water Level
+	 _delay_ms(50);
+	 
+	 Lcd4_Init();
+	 Lcd4_Clear();
+	 Lcd4_Set_Cursor(1,0);
+	 Lcd4_Write_String(" Welcome ");
+	 Lcd4_Set_Cursor(2,0);
+	 Lcd4_Write_String(" Group No : 24 ");
+	 _delay_ms(1000);
+    
+     
+     GICR |= 1<<INT0;
+     MCUCR |= 1<<ISC00;
+     
+	 
+	 char *msg1;
+	 char *msg2;
+	 
+	 msg1 = "Med Assist";
+	// msg2 = "Press 2 for Temperature Sensor";
+	 
+	 int l1 = strlen(msg1);
+	// int l2 = strlen(msg2);
+	 
+	 int i,j,p,q;
+
+     
+     sei();
+	
+	Lcd4_Clear();
+	
+	
+	
+	
+	char printbuff[100];
+	double d = 0;
+	int k;
+	char c;
+	int l;
+		
+	i = 0,p = 0;
+		
+		while(1){
+			
+			c = numberpressed();
+			_delay_ms(10);
+			waterLevel();
+			
+			if(c == '1'){
+				pulseRate();
+			}else if(c == '2'){
+					Lcd4_Clear();
+					Lcd4_Set_Cursor(1,0);
+					Lcd4_Write_String("Temp: ");
+					while(1){
+						d = ds18b20_gettemp();
+						
+						dtostrf(d, 10, 3, printbuff);
+						l = strlen(printbuff);
+						
+						for(k=0;k<l;k++){
+							Lcd4_Set_Cursor(1,(7+k));
+							Lcd4_Write_Char(printbuff[k]);
+						}
+						_delay_ms(1000);
+						
+						c = numberpressed();
+						if(c == '3'){
+							break;
+						}
+					}
+			}
+			
+			
+			if((i + 16) < l1){
+				for(j=0;j<16;j++){
+					Lcd4_Set_Cursor(1,j);
+					Lcd4_Write_Char(msg1[j+i]);
+				}
+				++i;
+			}else{
+				i = 0;
+			}
+			/*
+			if((p + 16) < l2){
+				for(q=0;q<16;q++){
+					Lcd4_Set_Cursor(2,q);
+					Lcd4_Write_Char(msg2[q+p]);
+				}
+				++p;
+				}else{
+				p = 0;
+			}
+			*/
+		
+			_delay_ms(300);	
+				
+		}	
+}
+
+
+
+ISR(INT0_vect)
+{
+	if(i == 1)
+	{
+		TCCR1B = 0;
+		pulse = TCNT1;
+		TCNT1 = 0;
+		i = 0;
+	}
+
+	if(i==0)
+	{
+		TCCR1B |= 1<<CS10;
+		i = 1;
+	}
+}
+
+//This must be added to ISR
+
+/*
+if (PINA & (1<<PA0)) {   // see comment #2
+	PORTB = ~PORTB;  // see comment #3
+	while (PINA & (1<<PA0))
+	{
+		continue;
+	}
+}
+*/
+
+void waterLevel(){
+	int16_t count_a = 0;
+	char show_a[16];
+
+		PORTD |= 1<<PIND0;
+		_delay_us(15);
+
+		PORTD &= ~(1<<PIND0);
+		count_a = pulse/58;
+		
+		itoa(count_a,show_a,10);
+		
+		if(count_a >= 30){
+			PORTA = 0x01;
+			PORTD &= ~(1<<PB4);
+			PORTD &= ~(1<<PB0);
+			PORTD |= (1<<PB5);
+		}
+		else if((count_a >= 27) && (count_a < 30)){
+			PORTA = 0x02;
+			PORTD &= ~(1<<PB4);
+			PORTD &= ~(1<<PB0);
+			PORTD |= (1<<PB5);
+		}else if((count_a >= 24) && (count_a < 27)){
+			PORTA = 0x06;
+			PORTD &= ~(1<<PB4);
+			PORTD &= ~(1<<PB0);
+			PORTD |= (1<<PB5);
+		}else if((count_a >= 21) && (count_a < 24)){
+			PORTA = 0x0E;
+			PORTD &= ~(1<<PB4);
+			PORTD &= ~(1<<PB0);
+			PORTD |= (1<<PB5);
+		}else if((count_a >= 18) && (count_a < 21)){
+			PORTA = 0x1E;
+			PORTD &= ~(1<<PB4);
+			PORTD &= ~(1<<PB0);
+			PORTD |= (1<<PB5);
+		}else if((count_a >= 15) && (count_a < 18)){
+			PORTA = 0x3E;
+			PORTD &= ~(1<<PB4);
+			PORTD &= ~(1<<PB0);
+			PORTD |= (1<<PB5);
+		}else if((count_a >= 12) && (count_a < 15)){
+			PORTA = 0x7E;
+			PORTD &= ~(1<<PB4);
+			PORTD &= ~(1<<PB0);
+			PORTD |= (1<<PB5);
+		}else if((count_a >= 9) && (count_a < 12)){
+			PORTA = 0xFE;
+			PORTD &= ~(1<<PB4);
+			PORTD &= ~(1<<PB0);
+			PORTD |= (1<<PB5);
+		}else if((count_a >= 6) && (count_a < 9)){
+			PORTA = 0xFE;
+			PORTD |= (1<<PB4);
+			PORTD &= ~(1<<PB0);
+			PORTD |= (1<<PB5);
+		}
+		else if((count_a >= 3) && (count_a < 6)){
+			PORTA = 0xFE;
+			PORTD |= (1<<PB4);
+			PORTD |= (1<<PB0);
+			PORTD |= (1<<PB5);
+		}else{
+			PORTA = 0x00;
+			PORTD &= ~(1<<PB4);
+			PORTD &= ~(1<<PB0);
+			PORTD &= ~(1<<PB5);
+		}
+		
+}
