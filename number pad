@@ -1,0 +1,22 @@
+#include <stdio.h>
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+#include "numberpad.h"
+
+char numberpressed()
+{
+	if(PINB & (1<<PB1))
+	{
+		return '3';
+	}
+	if(PINB & (1<<PB2))
+	{
+		return '2';
+	}
+	if(PINB & (1<<PB3))
+	{
+		return '1';
+	}
+	return 'N';
+}
